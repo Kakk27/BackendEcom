@@ -1,0 +1,241 @@
+{% extends "admin/layout.html" %}
+
+{% block main_content %}
+    <section class="content-main">
+        <div class="content-header">
+            <h2 class="content-title card-title">Products</h2>
+            <p>Add, edit, or delete a product</p>
+        </div>
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <form @submit.prevent="submitForm">
+                            <div class="mb-4">
+                                <label for="product_name" class="form-label">Name</label>
+                                <input type="text" v-model="product.name" placeholder="Type here" class="form-control"
+                                       id="product_name"/>
+                            </div>
+                            <div class="mb-4">
+                                <label for="product_code" class="form-label">Code</label>
+                                <input type="text" v-model="product.code" placeholder="Type here" class="form-control"
+                                       id="product_code"/>
+                            </div>
+                            <div class="mb-4">
+                                <label for="product_image" class="form-label">Image</label>
+                                <input type="file" @change="onFileChange" class="form-control" id="product_image"
+                                       accept="image/*"/>
+                            </div>
+                            <div class="mb-4">
+                                <label for="category_id" class="form-label">Category</label>
+                                <select v-model="product.category_id" class="form-control" id="category_id">
+                                    <option value="" disabled>Select a category</option>
+                                    <option v-for="category in categories" :key="category.id" :value="category.id">
+                                        [[ category.name ]]
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="mb-4">
+                                <label for="product_cost" class="form-label">Cost</label>
+                                <input type="text" v-model="product.cost" placeholder="Type here" class="form-control"
+                                       id="product_cost"/>
+                            </div>
+                            <div class="mb-4">
+                                <label for="product_price" class="form-label">Price</label>
+                                <input type="text" v-model="product.price" placeholder="Type here" class="form-control"
+                                       id="product_price"/>
+                            </div>
+                            <div class="mb-4">
+                                <label for="current_stock" class="form-label">Current Stock</label>
+                                <input type="text" v-model="product.current_stock" placeholder="Type here"
+                                       class="form-control" id="current_stock"/>
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    [[ editMode ? 'Update Product' : 'Create Product' ]]
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Code</th>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>Cost</th>
+                                    <th>Price</th>
+                                    <th>Current Stock</th>
+                                    <th>Image</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr v-for="product in products" :key="product.id">
+                                    <td>[[ product.id ]]</td>
+                                    <td>[[ product.code ]]</td>
+                                    <td>[[ product.name ]]</td>
+                                    <td>[[ product.category_name ]]</td> <!-- Directly access the category name -->
+                                    <td>[[ product.cost ]]</td>
+                                    <td>[[ product.price ]]</td>
+                                    <td>[[ product.current_stock ]]</td>
+                                    <td>
+                                        <img :src="'/static/uploads/' + product.image" alt="Product Image" width="50"/>
+                                    </td>
+                                    <td>
+                                        <a href="#" class="btn btn-sm btn-warning"
+                                           @click="editProduct(product)">Edit</a>
+                                        <a href="#" class="btn btn-sm btn-danger" @click="confirmDelete(product.id)">Delete</a>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+{% endblock %}
+
+{% block custom_js %}
+    <script>
+        new Vue({
+            el: '.content-main',
+            delimiters: ['[[', ']]'],
+            data() {
+                return {
+                    products: [],
+                    categories: [],
+                    product: {
+                        id: null,
+                        code: '',
+                        name: '',
+                        category_id: '',
+                        cost: '',
+                        price: '',
+                        current_stock: '',
+                        image: null
+                    },
+                    editMode: false,
+                };
+            },
+            mounted() {
+                this.fetchProducts();
+                this.fetchCategories();
+            },
+            methods: {
+                fetchProducts() {
+                    fetch('/get_products')
+                        .then(response => response.json())
+                        .then(data => {
+                            this.products = data;
+                        });
+                },
+                fetchCategories() {
+                    fetch('/get_categories')
+                        .then(response => response.json())
+                        .then(data => {
+                            this.categories = data;
+                        })
+                        .catch(error => console.error('Error fetching categories:', error));
+                },
+                onFileChange(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        this.product.image = file;
+                    }
+                },
+                submitForm() {
+                    const formData = new FormData();
+                    formData.append('code', this.product.code);
+                    formData.append('name', this.product.name);
+                    formData.append('category_id', this.product.category_id);
+                    formData.append('cost', this.product.cost);
+                    formData.append('price', this.product.price);
+                    formData.append('current_stock', this.product.current_stock);
+
+                    if (this.product.image) {
+                        formData.append('image', this.product.image);
+                    }
+
+                    const method = this.editMode ? 'PUT' : 'POST';
+                    const url = this.editMode ? `/update_product/${this.product.id}` : '/add_product_admin';
+
+                    fetch(url, {
+                        method: method,
+                        body: formData,
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            this.resetForm();
+                            this.fetchProducts();
+                        })
+                        .catch(error => console.error('Error:', error));
+                },
+                editProduct(product) {
+                    console.log('Editing product:', product);  // Check the product data
+                    this.product = {...product};  // Clone product data
+                    console.log('Selected category ID:', this.product.category_id);  // Check the category_id
+                    this.editMode = true;  // Set edit mode to true
+                },
+                confirmDelete(id) {
+                    // Show SweetAlert2 confirmation dialog
+                    Swal.fire({
+                        title: 'Are you sure?',
+                        text: "You won't be able to revert this!",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: 'Yes, delete it!',
+                        cancelButtonText: 'No, cancel!',
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            // Proceed with deletion if confirmed
+                            fetch(`/delete_product/${id}`, {
+                                method: 'DELETE',
+                            })
+                                .then(() => {
+                                    Swal.fire(
+                                        'Deleted!',
+                                        'Your product has been deleted.',
+                                        'success'
+                                    );
+                                    this.fetchProducts();  // Refresh product list
+                                })
+                                .catch(error => {
+                                    console.error('Error deleting product:', error);
+                                    Swal.fire(
+                                        'Error!',
+                                        'There was an error deleting the product.',
+                                        'error'
+                                    );
+                                });
+                        }
+                    });
+                },
+                resetForm() {
+                    this.product = {
+                        id: null,
+                        code: '',
+                        name: '',
+                        category_id: '',
+                        cost: '',
+                        price: '',
+                        current_stock: '',
+                        image: null
+                    };
+                    this.editMode = false;
+                },
+                getCategoryName(categoryId) {
+                    const category = this.categories.find(c => c.id === categoryId);
+                    return category ? category.name : 'Unknown';
+                }
+            }
+        });
+    </script>
+{% endblock %}

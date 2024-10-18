@@ -1,0 +1,278 @@
+{% extends "admin/layout.html" %}
+
+{% block main_content %}
+    <section class="content-main">
+        <div class="content-header">
+            <h2 class="content-title card-title">Users</h2>
+            <p>Add, edit, or delete a user</p>
+        </div>
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <form @submit.prevent="submitForm">
+                            <div class="mb-2">
+                                <label for="user_name" class="form-label">Name</label>
+                                <input type="text" v-model="user.name" placeholder="Type here" class="form-control"
+                                       id="user_name"/>
+                            </div>
+                            <div class="mb-2">
+                                <label for="user_code" class="form-label">Code</label>
+                                <input type="text" v-model="user.code" placeholder="Type here" class="form-control"
+                                       id="user_code"/>
+                            </div>
+                            <div class="mb-2">
+                                <label for="user_email" class="form-label">Email</label>
+                                <input type="email" v-model="user.email" placeholder="Type here" class="form-control"
+                                       id="user_email"/>
+                            </div>
+                            <div class="mb-2">
+                                <label for="user_phone" class="form-label">Phone</label>
+                                <input type="text" v-model="user.phone" placeholder="Type here" class="form-control"
+                                       id="user_phone"/>
+                            </div>
+                            <div class="mb-2">
+                                <label for="user_address" class="form-label">Address</label>
+                                <input type="text" v-model="user.address" placeholder="Type here" class="form-control"
+                                       id="user_address"/>
+                            </div>
+                            <div class="mb-2">
+                                <label for="user_gender" class="form-label">Gender</label>
+                                <select v-model="user.gender" class="form-select" id="user_gender">
+                                    <option value="0" selected>Male</option>
+                                    <option value="1">Female</option>
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label for="user_role" class="form-label">Role</label>
+                                <select v-model="user.role" class="form-select" id="user_role">
+                                    <option value="0" selected>User</option>
+                                    <option value="1">Admin</option>
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label for="user_password" class="form-label">Password</label>
+                                <input type="password" v-model="user.password" placeholder="Type here"
+                                       class="form-control"
+                                       id="user_password"/>
+                            </div>
+                            <div class="mb-2">
+                                <label for="user_status" class="form-label">Status</label>
+                                <select v-model="user.status" class="form-select" id="user_status">
+                                    <option value="1" selected>Active</option>
+                                    <option value="0">Inactive</option>
+                                </select>
+                            </div>
+
+                            <!-- Profile Image Preview -->
+                            <div class="mb-2">
+                                <label for="user_profile" class="form-label">Profile Image</label>
+                                <!-- Image Preview -->
+                                <div v-if="user.profile || oldProfileImage" class="mb-2">
+                                    <img :src="previewImage" alt="Profile Image Preview" class="img-fluid"
+                                         style="max-width: 150px;"/>
+                                </div>
+                                <input type="file" @change="handleFileUpload" class="form-control" id="user_profile"/>
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    [[ editMode ? 'Update User' : 'Create User' ]]
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Gender</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Address</th>
+                                    <th>Role</th>
+                                    <th>Code</th>
+                                    <th>Status</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr v-for="user in users" :key="user.id">
+                                    <td>[[ user.id ]]</td>
+                                    <td>[[ user.name ]]</td>
+                                    <td>[[ user.gender == '0' ? 'Male' : 'Female' ]]</td>
+                                    <td>[[ user.email ]]</td>
+                                    <td>[[ user.phone ]]</td>
+                                    <td>[[ user.address ]]</td>
+                                    <td>[[ user.role ]]</td>
+                                    <td>[[ user.code ]]</td>
+                                    <td>[[ user.status == '1' ? 'active' : 'inactive' ]]</td>
+                                    <td>
+                                        <a href="#" class="btn btn-sm btn-warning" @click="editUser(user)">Edit</a>
+                                        <a href="#" class="btn btn-sm btn-danger"
+                                           @click="confirmDelete(user.id)">Delete</a>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+{% endblock %}
+
+{% block custom_js %}
+    <script>
+        new Vue({
+            el: '.content-main',
+            delimiters: ['[[', ']]'],
+            data() {
+                return {
+                    users: [],
+                    user: {
+                        id: null,
+                        code: '',
+                        name: '',
+                        email: '',
+                        phone: '',
+                        address: '',
+                        gender: 0,  // Default gender value
+                        role: 0,     // Default role value
+                        password: '',
+                        status: 1,
+                        profile: null, // To store the profile image
+                    },
+                    oldProfileImage: '',  // To store the old image URL if available
+                    previewImage: '',    // To preview the uploaded or old image
+                    editMode: false,
+                };
+            },
+            mounted() {
+                this.fetchUsers();
+            },
+            methods: {
+                fetchUsers() {
+                    fetch('/get_users')
+                        .then(response => response.json())
+                        .then(data => {
+                            this.users = data;
+                        });
+                },
+
+                // This method will be triggered when the user clicks "Edit"
+                editUser(user) {
+                    this.editMode = true; // Set edit mode to true
+                    fetch(`/get_user_by_id/${user.id}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data) {
+                                // Populate the form with fetched user data
+                                this.user = {
+                                    id: data.id,
+                                    code: data.code,
+                                    name: data.name,
+                                    email: data.email,
+                                    phone: data.phone,
+                                    address: data.address,
+                                    gender: data.gender,
+                                    role: data.role,
+                                    password: data.password, // Keep the password empty when editing
+                                    status: data.status,
+                                    profile: data.profile, // Set profile to the existing image URL
+                                };
+
+                                // Check if there is an old profile image and update the preview
+                                if (data.profile) {
+                                    this.oldProfileImage = data.profile; // Save the old profile image URL
+                                    this.previewImage = this.oldProfileImage; // Set the preview image to the old one
+                                }
+                            }
+                        })
+                        .catch(error => console.error('Error fetching user:', error));
+                },
+                handleFileUpload(event) {
+                    const file = event.target.files[0];
+                    this.user.profile = file;  // Store the uploaded file in the user object
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            this.previewImage = e.target.result;  // Set the image preview
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                },
+
+                submitForm() {
+                    const formData = new FormData();
+                    for (const key in this.user) {
+                        formData.append(key, this.user[key]);  // Append each field value
+                    }
+
+                    const method = this.editMode ? 'PUT' : 'POST';  // Use PUT for updates, POST for creation
+                    const url = this.editMode ? `/update_user/${this.user.id}` : '/add_user_admin';
+
+                    fetch(url, {
+                        method: method,
+                        body: formData,
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            this.resetForm();  // Reset form after submission
+                            this.fetchUsers(); // Refresh the users list
+                        })
+                        .catch(error => console.error('Error:', error));
+                },
+                resetForm() {
+                    this.user = {
+                        id: null,
+                        code: '',
+                        name: '',
+                        email: '',
+                        phone: '',
+                        address: '',
+                        gender: '0',  // Default gender
+                        role: '0',    // Default role
+                        password: '',
+                        status: '',
+                        profile: null,  // Reset profile to null after form reset
+                    };
+                    this.previewImage = '';  // Reset image preview
+                    this.editMode = false;   // Reset edit mode flag
+                    this.oldProfileImage = '';  // Clear old profile image URL
+                }
+                ,
+
+                confirmDelete(id) {
+                    Swal.fire({
+                        title: 'Are you sure?',
+                        text: "You won't be able to revert this!",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: 'Yes, delete it!',
+                        cancelButtonText: 'No, cancel!',
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            fetch(`/delete_user/${id}`, {
+                                method: 'DELETE',
+                            })
+                                .then(() => {
+                                    Swal.fire('Deleted!', 'The user has been deleted.', 'success');
+                                    this.fetchUsers();
+                                })
+                                .catch(error => {
+                                    console.error('Error deleting user:', error);
+                                    Swal.fire('Error!', 'There was an error deleting the user.', 'error');
+                                });
+                        }
+                    });
+                }
+            }
+        });
+    </script>
+{% endblock %}

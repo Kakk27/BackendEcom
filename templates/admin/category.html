@@ -1,0 +1,174 @@
+{% extends "admin/layout.html" %}
+
+{% block main_content %}
+    <section class="content-main">
+        <div class="content-header">
+            <div>
+                <h2 class="content-title card-title">Categories</h2>
+                <p>Add, edit or delete a category</p>
+            </div>
+            <div>
+                <input type="text" placeholder="Search Categories" class="form-control bg-white"/>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <form @submit.prevent="submitForm">
+                            <div class="mb-4">
+                                <label for="category_name" class="form-label">Name</label>
+                                <input type="text" v-model="category.name" placeholder="Type here" class="form-control" id="category_name"/>
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label">Description</label>
+                                <textarea v-model="category.description" placeholder="Type here" class="form-control"></textarea>
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">[[ editMode ? 'Update category' : 'Create category' ]]</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" value=""/>
+                                            </div>
+                                        </th>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Description</th>
+                                        <th class="text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="category in categories" :key="category.id">
+                                        <td class="text-center">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" value=""/>
+                                            </div>
+                                        </td>
+                                        <td>[[ category.id ]]</td>
+                                        <td><b>[[ category.name ]]</b></td>
+                                        <td>[[ category.description ]]</td>
+                                        <td>
+                                            <div class="col-action text-center">
+                                                <a href="#" class="btn btn-sm font-sm rounded btn-brand" @click="editCategory(category)"> <i class="material-icons md-edit"></i> Edit </a>
+                                                <a href="#" class="btn btn-sm font-sm btn-light rounded" @click="confirmDelete(category.id)"> <i class="material-icons md-delete_forever"></i> Delete </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+{% endblock %}
+
+{% block custom_js %}
+<script>
+new Vue({
+    el: '.content-main',
+    delimiters: ['[[', ']]'], // Set Vue's custom delimiters to avoid conflict with Flask
+    data() {
+        return {
+            category: {
+                name: '',
+                description: ''
+            },
+            categories: [], // List to store fetched categories
+            editMode: false, // To track if it's edit or create mode
+            editCategoryId: null, // Store the ID of the category being edited
+        };
+    },
+    methods: {
+        // Function to submit a new category or update an existing one
+        submitForm() {
+            if (this.editMode) {
+                axios.put(`/update_category/${this.editCategoryId}`, this.category)
+                    .then(response => {
+                        // Update the category in the list
+                        const index = this.categories.findIndex(cat => cat.id === response.data.id);
+                        this.$set(this.categories, index, response.data);
+                        this.resetForm();
+                    })
+                    .catch(error => {
+                        console.error("There was an error updating the category!", error);
+                    });
+            } else {
+                axios.post('/add_category', this.category)
+                    .then(response => {
+                        this.categories.push(response.data); // Add new category to the list
+                        this.resetForm();
+                    })
+                    .catch(error => {
+                        console.error("There was an error submitting the form!", error);
+                    });
+            }
+        },
+        // Function to fetch categories from the backend
+        fetchCategories() {
+            axios.get('/get_categories')
+                .then(response => {
+                    this.categories = response.data; // Store the fetched categories
+                })
+                .catch(error => {
+                    console.error("There was an error fetching the categories!", error);
+                });
+        },
+        // Function to edit a category
+        editCategory(category) {
+            this.category.name = category.name;
+            this.category.description = category.description;
+            this.editCategoryId = category.id;
+            this.editMode = true;
+        },
+        // Function to confirm delete action
+        confirmDelete(id) {
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "You won't be able to revert this!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    this.deleteCategory(id);
+                }
+            });
+        },
+        // Function to delete a category
+        deleteCategory(id) {
+            axios.delete(`/delete_category/${id}`)
+                .then(response => {
+                    this.categories = this.categories.filter(category => category.id !== id); // Remove the deleted category from the list
+                    Swal.fire('Deleted!', 'Your category has been deleted.', 'success');
+                })
+                .catch(error => {
+                    console.error("There was an error deleting the category!", error);
+                });
+        },
+        // Reset the form and exit edit mode
+        resetForm() {
+            this.category.name = '';
+            this.category.description = '';
+            this.editMode = false;
+            this.editCategoryId = null;
+        }
+    },
+    // Fetch categories once the Vue component is mounted
+    mounted() {
+        this.fetchCategories();
+    }
+});
+</script>
+{% endblock %}
